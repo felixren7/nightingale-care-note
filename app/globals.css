@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+:root {
+  --canvas: #f3f5f2;
+  --ink: #132330;
+  --navy: #102638;
+  --muted: #68757d;
+  --line: #dce3df;
+  --mint: #a9e6cf;
+  --mint-strong: #3a9a7a;
+  --link: #176a68;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button, input { font: inherit; }
+button { cursor: pointer; }
+
+.glance-card {
+  min-height: 214px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  background: #fbfcfb;
+}
+
+.glance-card.critical { border-top: 4px solid #c8584f; background: #fffafa; }
+.glance-card.action { border-top: 4px solid #d9982c; background: #fffcf5; }
+.glance-card.context { border-top: 4px solid #3a9a7a; background: #f7fcfa; }
+
+.eyebrow, .section-kicker {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.section-kicker { margin-bottom: 4px; }
+
+.source-dot { width: 8px; height: 8px; border-radius: 999px; background: #8bc9b2; }
+
+.timeline-card {
+  display: flex;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: white;
+  padding: 20px;
+}
+
+.timeline-mark { width: 4px; min-height: 110px; border-radius: 999px; background: #94a3b8; }
+.timeline-mark.clinician { background: #267c6f; }
+.timeline-mark.system { background: #7b6bb3; }
+.timeline-mark.staff { background: #d9982c; }
+
+.side-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: white;
+  padding: 20px;
+}
+
+.task-row {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  align-items: start;
+  border-top: 1px solid #edf1ee;
+  padding-top: 12px;
+}
+
+.task-row input { margin-top: 3px; accent-color: var(--mint-strong); }
+.task-row strong, .task-row small { display: block; }
+.task-row strong { font-size: 13px; line-height: 1.35; }
+.task-row small { margin-top: 4px; color: var(--muted); font-size: 11px; }
+
+@media (max-width: 640px) {
+  .glance-card { min-height: auto; }
+  .timeline-card { padding: 16px; }
+}
