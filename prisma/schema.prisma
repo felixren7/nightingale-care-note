@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Clinic {
+  id              String           @id
+  name            String
+  users           User[]
+  patients        Patient[]
+  sourceArtifacts SourceArtifact[]
+  entries         Entry[]
+  featureWeights  FeatureWeight[]
+  events          EventOutbox[]
+  audits          AuditEvent[]
+  createdAt       DateTime         @default(now())
+}
+
+model User {
+  id               String              @id
+  clinicId         String?
+  clinic           Clinic?             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patientId        String?             @unique
+  patient          Patient?            @relation("PatientPortal", fields: [patientId], references: [id], onDelete: SetNull)
+  role             String
+  displayName      String
+  email            String              @unique
+  sessions         Session[]
+  authoredEntries  Entry[]             @relation("EntryAuthor")
+  editedVersions   EntryVersion[]      @relation("VersionEditor")
+  authoredComments Comment[]           @relation("CommentAuthor")
+  assignedComments Comment[]           @relation("CommentAssignee")
+  assignedTasks    Task[]              @relation("TaskAssignee")
+  feedback         HighlightFeedback[]
+  relations        EntryRelation[]     @relation("RelationCreator")
+  audits           AuditEvent[]        @relation("AuditActor")
+  createdAt        DateTime            @default(now())
+
+  @@index([clinicId, role], map: "idx_users_clinic_role")
+}
+
+model Session {
+  idHash    String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt], map: "idx_sessions_user_expires")
+}
+
+model Patient {
+  id            String           @id
+  clinicId      String
+  clinic        Clinic           @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  portalUser    User?            @relation("PatientPortal")
+  displayName   String
+  birthYear     Int
+  recordNumber  String           @unique
+  synthetic     Boolean          @default(true)
+  lastContactAt DateTime
+  entries       Entry[]
+  tasks         Task[]
+  highlights    Highlight[]
+  artifacts     SourceArtifact[]
+  relations     EntryRelation[]
+  events        EventOutbox[]
+  audits        AuditEvent[]
+  glanceCache   GlanceCache?
+  createdAt     DateTime         @default(now())
+
+  @@index([clinicId, lastContactAt], map: "idx_patients_clinic_contact")
+}
+
+model SourceArtifact {
+  id                String      @id
+  clinicId          String
+  clinic            Clinic      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patientId         String
+  patient           Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  sessionRef        String
+  interactionType   String
+  rawCipher         String
+  rawIv             String
+  rawTag            String
+  redactedCipher    String
+  redactedIv        String
+  redactedTag       String
+  redactionMetadata String
+  entries           Entry[]
+  highlights        Highlight[]
+  createdAt         DateTime    @default(now())
+
+  @@unique([clinicId, sessionRef])
+  @@index([patientId, createdAt], map: "idx_artifacts_patient_created")
+}
+
+model Entry {
+  id                String          @id
+  clinicId          String
+  clinic            Clinic          @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patientId         String
+  patient           Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  authorId          String?
+  author            User?           @relation("EntryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  authorRole        String
+  type              String
+  visibility        String
+  section           String
+  riskLevel         String          @default("low")
+  currentVersion    Int             @default(1)
+  sourceArtifactId  String?
+  sourceArtifact    SourceArtifact? @relation(fields: [sourceArtifactId], references: [id], onDelete: SetNull)
+  supersedesEntryId String?
+  supersedes        Entry?          @relation("EntrySupersession", fields: [supersedesEntryId], references: [id], onDelete: SetNull)
+  supersededBy      Entry[]         @relation("EntrySupersession")
+  storageTier       String          @default("hot")
+  versions          EntryVersion[]
+  comments          Comment[]
+  tasks             Task[]
+  highlights        Highlight[]
+  outboundRelations EntryRelation[] @relation("RelationFrom")
+  inboundRelations  EntryRelation[] @relation("RelationTo")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([patientId, createdAt], map: "idx_entries_patient_created")
+  @@index([clinicId, patientId, visibility], map: "idx_entries_scope_visibility")
+  @@index([patientId, type, riskLevel], map: "idx_entries_patient_type_risk")
+}
+
+model EntryVersion {
+  id                  String       @id
+  entryId             String
+  entry               Entry        @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  version             Int
+  contentCipher       String
+  contentIv           String
+  contentTag          String
+  contentHash         String
+  createdById         String?
+  createdBy           User?        @relation("VersionEditor", fields: [createdById], references: [id], onDelete: SetNull)
+  revertedFromVersion Int?
+  archive             ArchiveBlob?
+  highlights          Highlight[]
+  createdAt           DateTime     @default(now())
+
+  @@unique([entryId, version])
+  @@index([entryId, createdAt], map: "idx_versions_entry_created")
+}
+
+model Comment {
+  id           String    @id
+  entryId      String
+  entry        Entry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      Comment[] @relation("CommentThread")
+  authorId     String
+  author       User      @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo   User?     @relation("CommentAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  bodyCipher   String
+  bodyIv       String
+  bodyTag      String
+  startOffset  Int?
+  endOffset    Int?
+  status       String    @default("open")
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([entryId, status, createdAt], map: "idx_comments_entry_status")
+}
+
+model Task {
+  id           String    @id
+  patientId    String
+  patient      Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  entryId      String?
+  entry        Entry?    @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  assignedToId String?
+  assignedTo   User?     @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  titleCipher  String
+  titleIv      String
+  titleTag     String
+  status       String    @default("open")
+  dueAt        DateTime?
+  riskLevel    String    @default("low")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([patientId, status, dueAt], map: "idx_tasks_patient_status_due")
+}
+
+model Highlight {
+  id               String              @id
+  patientId        String
+  patient          Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  entryId          String
+  entry            Entry               @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  entryVersionId   String
+  entryVersion     EntryVersion        @relation(fields: [entryVersionId], references: [id], onDelete: Cascade)
+  sourceArtifactId String?
+  sourceArtifact   SourceArtifact?     @relation(fields: [sourceArtifactId], references: [id], onDelete: SetNull)
+  startOffset      Int
+  endOffset        Int
+  kind             String
+  summaryCipher    String
+  summaryIv        String
+  summaryTag       String
+  riskReasonCipher String
+  riskReasonIv     String
+  riskReasonTag    String
+  riskLevel        String              @default("low")
+  entityType       String?
+  featureKey       String
+  status           String              @default("suggested")
+  baseScore        Float
+  learnedScore     Float               @default(0)
+  finalScore       Float
+  feedback         HighlightFeedback[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([patientId, status, finalScore], map: "idx_highlights_patient_status_score")
+  @@index([entryId, entryVersionId], map: "idx_highlights_provenance")
+}
+
+model HighlightFeedback {
+  id          String    @id
+  highlightId String
+  highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String
+  featureKey  String
+  delta       Float
+  createdAt   DateTime  @default(now())
+
+  @@index([highlightId, createdAt], map: "idx_feedback_highlight_created")
+}
+
+model FeatureWeight {
+  id           String   @id
+  clinicId     String
+  clinic       Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  featureKey   String
+  weight       Float    @default(0)
+  observations Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  @@unique([clinicId, featureKey])
+}
+
+model EntryRelation {
+  id          String   @id
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  fromEntryId String
+  fromEntry   Entry    @relation("RelationFrom", fields: [fromEntryId], references: [id], onDelete: Cascade)
+  toEntryId   String
+  toEntry     Entry    @relation("RelationTo", fields: [toEntryId], references: [id], onDelete: Cascade)
+  relation    String
+  createdById String?
+  createdBy   User?    @relation("RelationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@unique([fromEntryId, toEntryId, relation])
+}
+
+model EventOutbox {
+  id          Int      @id @default(autoincrement())
+  clinicId    String
+  clinic      Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  eventType   String
+  payloadJson String
+  createdAt   DateTime @default(now())
+
+  @@index([patientId, id], map: "idx_events_patient_cursor")
+}
+
+model ArchiveBlob {
+  id             String       @id
+  entryVersionId String       @unique
+  entryVersion   EntryVersion @relation(fields: [entryVersionId], references: [id], onDelete: Cascade)
+  path           String
+  sha256         String
+  createdAt      DateTime     @default(now())
+  restoredAt     DateTime?
+}
+
+model AuditEvent {
+  id           String   @id
+  clinicId     String
+  clinic       Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patientId    String?
+  patient      Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  actorId      String?
+  actor        User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action       String
+  entityType   String
+  entityId     String
+  fromVersion  Int?
+  toVersion    Int?
+  metadataJson String
+  createdAt    DateTime @default(now())
+
+  @@index([clinicId, patientId, createdAt], map: "idx_audit_scope_created")
+}
+
+model GlanceCache {
+  patientId     String   @id
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  payloadCipher String
+  payloadIv     String
+  payloadTag    String
+  refreshedAt   DateTime @updatedAt
+}
