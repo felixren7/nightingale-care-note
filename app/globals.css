@@ -20,11 +20,25 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-button, input { font: inherit; }
+button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .55; }
+
+.primary-button, .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.primary-button { background: var(--navy); color: white; border: 1px solid var(--navy); }
+.secondary-button { background: white; color: var(--ink); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(16,35,51,.04); }
 
 .glance-card {
-  min-height: 214px;
+  min-height: 238px;
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: 18px;
@@ -46,6 +60,20 @@ button { cursor: pointer; }
 .section-kicker { margin-bottom: 4px; }
 
 .source-dot { width: 8px; height: 8px; border-radius: 999px; background: #8bc9b2; }
+
+.chip-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #d6e5df;
+  border-radius: 999px;
+  background: white;
+  padding: 5px 8px;
+  color: #256f61;
+  font-size: 10px;
+  font-weight: 800;
+}
+.chip-button.danger { color: #a84944; border-color: #ead8d6; }
 
 .timeline-card {
   display: flex;
@@ -82,7 +110,60 @@ button { cursor: pointer; }
 .task-row strong { font-size: 13px; line-height: 1.35; }
 .task-row small { margin-top: 4px; color: var(--muted); font-size: 11px; }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 23, 34, .58);
+  backdrop-filter: blur(5px);
+}
+.modal-card {
+  width: min(720px, 100%);
+  max-height: min(820px, 90vh);
+  overflow: auto;
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 28px 90px rgba(0,0,0,.28);
+}
+.modal-card textarea {
+  width: 100%;
+  min-height: 170px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.modal-card textarea:focus { border-color: #5ba992; box-shadow: 0 0 0 3px rgba(91,169,146,.14); }
+.modal-help { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.version-list { display: grid; gap: 12px; }
+.version-list article { border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.version-list article > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.version-list span { color: var(--muted); font-size: 11px; }
+.version-list p { margin: 10px 0 0; white-space: pre-wrap; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.version-list button { margin-top: 12px; color: var(--link); font-size: 11px; font-weight: 800; }
+.provenance-meta { display: flex; flex-wrap: wrap; gap: 7px; }
+.provenance-meta span { border-radius: 999px; background: #edf6f2; padding: 6px 9px; color: #286b5a; font-size: 10px; font-weight: 800; }
+.source-copy { margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; background: #fafbfa; padding: 14px; white-space: pre-wrap; font-size: 13px; line-height: 1.65; }
+.exact-span { margin-top: 12px; border-left: 4px solid var(--mint-strong); border-radius: 8px; background: #f0f8f5; padding: 12px 14px; }
+.exact-span strong { color: #296c5d; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.exact-span p { margin-top: 5px; font-size: 13px; }
+.conflict-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.conflict-grid > div { border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+.conflict-grid strong { font-size: 12px; }
+.conflict-grid p { margin-top: 8px; white-space: pre-wrap; color: var(--muted); font-size: 12px; line-height: 1.55; }
+
 @media (max-width: 640px) {
   .glance-card { min-height: auto; }
   .timeline-card { padding: 16px; }
+  .conflict-grid { grid-template-columns: 1fr; }
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions button { width: 100%; }
 }
