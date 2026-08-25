@@ -4,6 +4,7 @@ import { decryptText } from '@/src/core/crypto';
 import { db } from './db';
 import { notFound } from './http';
 import { assertCanViewPatient, canViewEntry } from './rbac';
+import { readVersionContent } from './version-content';
 
 const decrypt = (cipher: string, iv: string, tag: string) => decryptText({ cipher, iv, tag });
 
@@ -29,9 +30,9 @@ export async function getCareNote(user: SessionUser, patientId: string) {
     orderBy: { createdAt: 'desc' },
   });
 
-  const timeline: EntryDTO[] = entryRows
+  const timeline: EntryDTO[] = await Promise.all(entryRows
     .filter((entry) => canViewEntry(user, entry))
-    .map((entry) => {
+    .map(async (entry) => {
       const version = entry.versions[0];
       if (!version) throw new Error(`Entry ${entry.id} has no version.`);
       const dto: EntryDTO = {
@@ -43,7 +44,7 @@ export async function getCareNote(user: SessionUser, patientId: string) {
         section: entry.section,
         riskLevel: entry.riskLevel,
         version: version.version,
-        content: decrypt(version.contentCipher, version.contentIv, version.contentTag),
+        content: await readVersionContent(version),
         createdAt: entry.createdAt.toISOString(),
         updatedAt: entry.updatedAt.toISOString(),
         sourceSessionRef: entry.sourceArtifact?.sessionRef,
@@ -60,7 +61,7 @@ export async function getCareNote(user: SessionUser, patientId: string) {
         }));
       }
       return dto;
-    });
+    }));
 
   let glance: HighlightDTO[] = [];
   let tasks: Array<{

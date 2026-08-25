@@ -16,6 +16,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx prisma/seed.ts",
+    "archive:preview": "tsx scripts/archive.ts",
+    "archive:apply": "tsx scripts/archive.ts --apply",
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run lint && npm run typecheck && npm run test && npm run build"

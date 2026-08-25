@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decryptText } from '@/src/core/crypto';
 import { db } from '@/src/server/db';
 import { routeError, notFound } from '@/src/server/http';
 import { canViewEntry } from '@/src/server/rbac';
 import { requireSession } from '@/src/server/session';
+import { readVersionContent } from '@/src/server/version-content';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -13,15 +13,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!entry || !canViewEntry(user, entry)) notFound();
     const rows = await db.entryVersion.findMany({ where: { entryId: id }, orderBy: { version: 'desc' } });
     return NextResponse.json({
-      versions: rows.map((row) => ({
+      versions: await Promise.all(rows.map(async (row) => ({
         id: row.id,
         version: row.version,
-        content: row.contentCipher === '__ARCHIVED__'
-          ? '[Cold archived — provenance retained]'
-          : decryptText({ cipher: row.contentCipher, iv: row.contentIv, tag: row.contentTag }),
+        content: await readVersionContent(row),
         revertedFromVersion: row.revertedFromVersion,
         createdAt: row.createdAt.toISOString(),
-      })),
+      }))),
     });
   } catch (error) {
     return routeError(error);

@@ -7,6 +7,7 @@ import { runMockScribe, type ScribeInteraction } from '@/src/core/mock-scribe';
 import { db } from './db';
 import { emitPatientEvent, recordAudit } from './audit';
 import { HttpError, notFound } from './http';
+import { readVersionContent } from './version-content';
 import {
   assertCanCreateEntry,
   assertCanEditEntry,
@@ -195,9 +196,8 @@ export async function revertEntry(
     where: { entryId_version: { entryId, version: input.version } },
   });
   if (!source) notFound();
-  if (source.contentCipher === '__ARCHIVED__') {
-    throw new HttpError(409, 'ARCHIVED_VERSION', 'Restore the cold version before reverting to it.');
-  }
+  const sourceContent = await readVersionContent(source);
+  const sourceEncrypted = encryptText(sourceContent);
   const nextVersion = input.baseVersion + 1;
   const versionId = randomUUID();
   await db.$transaction(async (tx) => {
@@ -217,9 +217,9 @@ export async function revertEntry(
         id: versionId,
         entryId,
         version: nextVersion,
-        contentCipher: source.contentCipher,
-        contentIv: source.contentIv,
-        contentTag: source.contentTag,
+        contentCipher: sourceEncrypted.cipher,
+        contentIv: sourceEncrypted.iv,
+        contentTag: sourceEncrypted.tag,
         contentHash: source.contentHash,
         createdById: user.id,
         revertedFromVersion: source.version,

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decryptText } from '@/src/core/crypto';
 import { db } from '@/src/server/db';
 import { routeError, notFound } from '@/src/server/http';
 import { canViewEntry } from '@/src/server/rbac';
 import { requireSession } from '@/src/server/session';
+import { readVersionContent } from '@/src/server/version-content';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ highlightId: string }> }) {
   try {
@@ -14,9 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       include: { entry: true, entryVersion: true, sourceArtifact: true },
     });
     if (!highlight || !canViewEntry(user, highlight.entry)) notFound();
-    const content = highlight.entryVersion.contentCipher === '__ARCHIVED__'
-      ? '[Cold archived source — metadata retained]'
-      : decryptText({ cipher: highlight.entryVersion.contentCipher, iv: highlight.entryVersion.contentIv, tag: highlight.entryVersion.contentTag });
+    const content = await readVersionContent(highlight.entryVersion);
     return NextResponse.json({
       pointer: {
         entryId: highlight.entryId,
