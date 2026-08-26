@@ -17,7 +17,7 @@ body {
   margin: 0;
   background: var(--canvas);
   color: var(--ink);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 button, input, textarea, select { font: inherit; }
@@ -148,6 +148,8 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .version-list article > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
 .version-list span { color: var(--muted); font-size: 11px; }
 .version-list p { margin: 10px 0 0; white-space: pre-wrap; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.version-diff .added { border-radius: 3px; background: #dff5e9; color: #176a4f; text-decoration: none; }
+.version-diff .removed { border-radius: 3px; background: #fee2e2; color: #9f3838; text-decoration: line-through; }
 .version-list button { margin-top: 12px; color: var(--link); font-size: 11px; font-weight: 800; }
 .provenance-meta { display: flex; flex-wrap: wrap; gap: 7px; }
 .provenance-meta span { border-radius: 999px; background: #edf6f2; padding: 6px 9px; color: #286b5a; font-size: 10px; font-weight: 800; }

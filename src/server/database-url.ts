@@ -9,7 +9,7 @@ export function getDatabasePath() {
   const filePath = decodeURIComponent(configured.slice('file:'.length));
   if (filePath.startsWith('/')) return filePath;
   if (filePath.startsWith('../')) return resolve(process.cwd(), 'prisma', filePath);
-  return resolve(process.cwd(), filePath);
+  return resolve(/* turbopackIgnore: true */ process.cwd(), filePath);
 }
 
 export function getDatabaseUrl() {

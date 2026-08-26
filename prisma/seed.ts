@@ -133,6 +133,9 @@ async function main() {
       id: 'entry-patient-instructions', authorId: 'user-clinician', authorRole: 'clinician', type: 'patient_instruction', visibility: 'patient', section: 'instructions', riskLevel: 'medium', currentVersion: 1, createdAt: new Date('2026-08-25T09:20:00+08:00'), updatedAt: new Date('2026-08-25T09:20:00+08:00'), sourceArtifactId: null,
     },
     {
+      id: 'entry-feb-followup', authorId: 'user-staff', authorRole: 'staff', type: 'staff_note', visibility: 'internal', section: 'follow_up', riskLevel: 'low', currentVersion: 1, createdAt: new Date('2026-02-06T14:30:00+08:00'), updatedAt: new Date('2026-02-06T14:30:00+08:00'), sourceArtifactId: null,
+    },
+    {
       id: 'entry-archive-candidate', authorId: 'user-staff', authorRole: 'staff', type: 'staff_note', visibility: 'internal', section: 'historic_admin', riskLevel: 'low', currentVersion: 1, createdAt: new Date('2025-04-15T09:00:00+08:00'), updatedAt: new Date('2025-04-15T09:00:00+08:00'), sourceArtifactId: null,
     },
   ];
@@ -148,6 +151,7 @@ async function main() {
     { id: 'version-ai-doctor-1', entryId: 'entry-ai-doctor', version: 1, author: null, content: 'Post-consult summary: symptoms suggest worsening nocturnal asthma. Inhaler technique reviewed and spirometry planned.', createdAt: new Date('2026-08-25T09:10:00+08:00') },
     { id: 'version-staff-1', entryId: 'entry-staff-followup', version: 1, author: 'user-staff', content: 'Spirometry slot held for Friday. Waiting for the patient to confirm availability.', createdAt: new Date('2026-08-21T16:05:00+08:00') },
     { id: 'version-instructions-1', entryId: 'entry-patient-instructions', version: 1, author: 'user-clinician', content: 'Continue your controller inhaler daily. Seek urgent care if breathing becomes difficult at rest.', createdAt: new Date('2026-08-25T09:20:00+08:00') },
+    { id: 'version-feb-followup-1', entryId: 'entry-feb-followup', version: 1, author: 'user-staff', content: 'February follow-up completed. Patient reported good controller adherence and no urgent visits since the previous review.', createdAt: new Date('2026-02-06T14:30:00+08:00') },
     { id: 'version-archive-1', entryId: 'entry-archive-candidate', version: 1, author: 'user-staff', content: 'Historic appointment reminder was completed with no unresolved clinical action.', createdAt: new Date('2025-04-15T09:00:00+08:00') },
   ];
 

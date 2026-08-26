@@ -10,6 +10,7 @@
     "build": "next build",
     "postinstall": "prisma generate",
     "start": "next start",
+    "start:https": "node scripts/start-https.mjs",
     "lint": "eslint . --ignore-pattern .next --ignore-pattern generated",
     "typecheck": "tsc --noEmit",
     "setup": "tsx scripts/setup.ts && prisma generate && tsx scripts/migrate.ts && tsx prisma/seed.ts",
@@ -20,7 +21,10 @@
     "archive:apply": "tsx scripts/archive.ts --apply",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "test:brief": "tsx prisma/seed.ts && node scripts/run-brief-tests.mjs && tsx prisma/seed.ts",
+    "test:encrypted-db": "node scripts/check-encrypted-db.mjs",
+    "bench:glance": "node scripts/bench-glance.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run test:brief && npm run test:encrypted-db && npm run build"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",
@@ -48,6 +52,9 @@
     "tsx": "^4.23.12",
     "typescript": "5.9.3",
     "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.0"
   },
   "type": "module"
 }

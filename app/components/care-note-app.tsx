@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   Bot,
   Check,
@@ -26,7 +26,7 @@ type CareNote = {
   timeline: EntryDTO[];
   tasks: Array<{ id: string; title: string; status: string; dueAt?: string; riskLevel: string; assignedToName?: string }>;
 };
-type Version = { id: string; version: number; content: string; revertedFromVersion?: number; createdAt: string };
+type Version = { id: string; version: number; content: string; changes?: Array<{ value: string; added: boolean; removed: boolean }>; revertedFromVersion?: number; createdAt: string };
 type Provenance = {
   pointer: { entryId: string; versionId: string; version: number; startOffset: number; endOffset: number; sourceArtifactId?: string };
   source: { content: string; exactSpan: string; sessionRef?: string; interactionType?: string };
@@ -60,6 +60,7 @@ const canEdit = (viewer: SessionUser, entry: EntryDTO) => viewer.role === entry.
 export function CareNoteApp() {
   const [note, setNote] = useState<CareNote | null>(null);
   const [users, setUsers] = useState<SessionUser[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
@@ -80,7 +81,10 @@ export function CareNoteApp() {
     try {
       const session = await api<{ viewer: SessionUser | null; users: SessionUser[] }>('/api/session');
       setUsers(session.users);
-      if (!session.viewer) await api('/api/session', { method: 'POST', body: JSON.stringify({ userId: 'user-clinician' }) });
+      if (!session.viewer) {
+        await api('/api/session', { method: 'POST', body: JSON.stringify({ userId: 'user-clinician' }) });
+        setSelectedUserId('user-clinician');
+      } else setSelectedUserId(session.viewer.id);
       const careNote = await api<CareNote>('/api/patients/patient-maya/care-note');
       setNote(careNote);
       setError('');
@@ -108,6 +112,7 @@ export function CareNoteApp() {
   const switchRole = async (userId: string) => {
     setLoading(true);
     setMessage('');
+    setSelectedUserId(userId);
     await api('/api/session', { method: 'POST', body: JSON.stringify({ userId }) });
     await load();
   };
@@ -146,14 +151,13 @@ export function CareNoteApp() {
   const canCollaborate = note ? ['staff', 'clinician'].includes(note.viewer.role) : false;
   const canAdd = note ? ['staff', 'clinician', 'patient'].includes(note.viewer.role) : false;
   const age = note ? new Date().getFullYear() - note.patient.birthYear : 0;
-  const userId = useMemo(() => users.find((user) => user.id === note?.viewer.id)?.id ?? '', [users, note]);
 
   return (
     <main className="min-h-screen bg-[var(--canvas)] text-[var(--ink)]">
       <div className="border-b border-white/10 bg-[var(--navy)] text-white">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-5 py-3 lg:px-8">
           <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--mint)] text-sm font-black text-[var(--navy)]">N</div><div><p className="text-sm font-semibold tracking-tight">Nightingale</p><p className="text-[11px] text-slate-300">Shared Care Note</p></div></div>
-          <div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-emerald-200/20 bg-emerald-200/10 px-3 py-1.5 text-[11px] font-bold tracking-wide text-emerald-100">SYNTHETIC DATA</span><label className="relative flex items-center"><select aria-label="Demo role" className="appearance-none rounded-full border border-white/15 bg-white/10 py-1.5 pl-3 pr-8 text-xs font-medium text-slate-100 outline-none" value={userId} onChange={(event) => void switchRole(event.target.value)}>{users.map((user) => <option className="text-slate-900" value={user.id} key={user.id}>{userLabels[user.id] ?? user.displayName}</option>)}</select><ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5" /></label></div>
+          <div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-emerald-200/20 bg-emerald-200/10 px-3 py-1.5 text-[11px] font-bold tracking-wide text-emerald-100">SYNTHETIC DATA</span><label className="relative flex items-center"><select aria-label="Demo role" className="appearance-none rounded-full border border-white/15 bg-white/10 py-1.5 pl-3 pr-8 text-xs font-medium text-slate-100 outline-none" value={selectedUserId} onChange={(event) => void switchRole(event.target.value)}>{users.map((user) => <option className="text-slate-900" value={user.id} key={user.id}>{userLabels[user.id] ?? user.displayName}</option>)}</select><ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5" /></label></div>
         </div>
       </div>
 
@@ -180,8 +184,8 @@ export function CareNoteApp() {
 
       {showAdd && note && <Modal title="Add role-owned care note" onClose={() => setShowAdd(false)}><p className="modal-help">This creates a new {note.viewer.role} section. It cannot overwrite another role’s note.</p><textarea autoFocus value={newContent} onChange={(event) => setNewContent(event.target.value)} placeholder="Add a concise, clinically useful update…" /><div className="modal-actions"><button className="secondary-button" onClick={() => setShowAdd(false)}>Cancel</button><button className="primary-button" disabled={!newContent.trim() || busy === 'create-note'} onClick={() => void createNote()}>{busy === 'create-note' ? 'Saving…' : 'Create version 1'}</button></div></Modal>}
       {editing && <Modal title={`Edit ${prettyType(editing.section)} · v${editing.version}`} onClose={() => setEditing(null)}><p className="modal-help">Optimistic locking will reject this save if another browser changed the same entry.</p><textarea autoFocus value={draft} onChange={(event) => setDraft(event.target.value)} /><div className="modal-actions"><button className="secondary-button" onClick={() => setEditing(null)}>Cancel</button><button className="primary-button" disabled={!draft.trim() || Boolean(busy)} onClick={() => void saveEdit()}>{busy ? 'Checking version…' : 'Save new version'}</button></div></Modal>}
-      {history && note && <Modal title={`Immutable history · ${prettyType(history.entry.section)}`} onClose={() => setHistory(null)}><div className="version-list">{history.versions.map((version) => <article key={version.id}><div><strong>Version {version.version}</strong><span>{formatDate(version.createdAt)}{version.revertedFromVersion ? ` · reverted from v${version.revertedFromVersion}` : ''}</span></div><p>{version.content}</p>{canEdit(note.viewer, history.entry) && version.version !== history.entry.version && <button onClick={() => void mutate(`revert-${version.version}`, () => api(`/api/entries/${history.entry.id}/revert`, { method: 'POST', body: JSON.stringify({ version: version.version, baseVersion: history.entry.version }) }), `Version ${version.version} restored as a new version.`).then((ok) => { if (ok) setHistory(null); })}>Revert by creating a new version</button>}</article>)}</div></Modal>}
-      {provenance && <Modal title="Verified provenance pointer" onClose={() => setProvenance(null)}><div className="provenance-meta"><span>Entry {provenance.pointer.entryId}</span><span>Version {provenance.pointer.version}</span><span>Span {provenance.pointer.startOffset}–{provenance.pointer.endOffset}</span>{provenance.source.sessionRef && <span>Session {provenance.source.sessionRef}</span>}</div><p className="source-copy">{provenance.source.content}</p><div className="exact-span"><strong>Exact referenced span</strong><p>{provenance.source.exactSpan || 'The stored offsets resolve to an empty span.'}</p></div></Modal>}
+      {history && note && <Modal title={`Immutable history · ${prettyType(history.entry.section)}`} onClose={() => setHistory(null)}><div className="version-list">{history.versions.map((version) => <article key={version.id}><div><strong>Version {version.version}</strong><span>{formatDate(version.createdAt)}{version.revertedFromVersion ? ` · reverted from v${version.revertedFromVersion}` : ''}</span></div>{version.changes?.length ? <p className="version-diff" aria-label={`Changes in version ${version.version}`}>{version.changes.map((change, index) => <span className={change.added ? 'added' : change.removed ? 'removed' : ''} key={`${index}-${change.value}`}>{change.value}</span>)}</p> : <p>{version.content}</p>}{canEdit(note.viewer, history.entry) && version.version !== history.entry.version && <button onClick={() => void mutate(`revert-${version.version}`, () => api(`/api/entries/${history.entry.id}/revert`, { method: 'POST', body: JSON.stringify({ version: version.version, baseVersion: history.entry.version }) }), `Version ${version.version} restored as a new version.`).then((ok) => { if (ok) setHistory(null); })}>Revert by creating a new version</button>}</article>)}</div></Modal>}
+      {provenance && <Modal title="Verified provenance pointer" onClose={() => setProvenance(null)}><div className="provenance-meta"><span>Entry {provenance.pointer.entryId}</span><span>Version {provenance.pointer.version}</span><span>Span {provenance.pointer.startOffset}–{provenance.pointer.endOffset}</span>{provenance.source.sessionRef && <span>Session {provenance.source.sessionRef}</span>}</div><p className="source-copy">{provenance.source.content}</p><div className="exact-span"><strong>Exact referenced span</strong><p>{provenance.source.exactSpan || 'The stored offsets resolve to an empty span.'}</p></div><div className="modal-actions"><button className="primary-button" onClick={() => { const entryId = provenance.pointer.entryId; setProvenance(null); requestAnimationFrame(() => document.getElementById(`entry-${entryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })); }}><Link2 className="h-4 w-4" />Jump to timeline entry</button></div></Modal>}
       {commentFor && <Modal title="Add threaded comment" onClose={() => setCommentFor(null)}><p className="modal-help">Internal collaboration only. The patient-facing response never contains this field.</p><textarea autoFocus value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Use @mention context and a clear next action…" /><div className="modal-actions"><button className="secondary-button" onClick={() => setCommentFor(null)}>Cancel</button><button className="primary-button" disabled={!comment.trim() || Boolean(busy)} onClick={() => void mutate('add-comment', () => api(`/api/entries/${commentFor}/comments`, { method: 'POST', body: JSON.stringify({ body: comment, assignedToId: note?.viewer.role === 'staff' ? 'user-clinician' : 'user-staff' }) }), 'Thread comment added and assigned.').then((ok) => { if (ok) { setCommentFor(null); setComment(''); } })}>Comment & assign</button></div></Modal>}
       {showScribe && note && <Modal title="Deterministic MockScribe ingest" onClose={() => setShowScribe(false)}><p className="modal-help">No network or LLM key is used. Names, Singapore IDs and phone numbers are redacted before the provider boundary.</p><textarea value={scribeText} onChange={(event) => setScribeText(event.target.value)} /><div className="modal-actions"><button className="secondary-button" onClick={() => setShowScribe(false)}>Cancel</button><button className="primary-button" disabled={!scribeText.trim() || Boolean(busy)} onClick={() => void mutate('scribe', () => api('/api/dev/scribe-ingest', { method: 'POST', body: JSON.stringify({ patientId: note.patient.id, sessionRef: `demo-${Date.now()}`, interactionType: 'ai_patient', transcript: scribeText }) }), 'Mock scribe entry created. PHI was redacted before provider processing.').then((ok) => { if (ok) setShowScribe(false); })}><Sparkles className="h-4 w-4" />Redact & ingest</button></div></Modal>}
       {conflict && <Modal title="409 · Concurrent edit detected" onClose={() => setConflict(null)}><p className="modal-help">Your draft was preserved. Nothing was overwritten. Compare the two versions before deciding what to keep.</p><div className="conflict-grid"><div><strong>Your draft · base v{conflict.clientVersion}</strong><p>{conflict.client}</p></div><div><strong>Server · current v{conflict.serverVersion}</strong><p>{conflict.server}</p></div></div><div className="modal-actions"><button className="primary-button" onClick={() => { setConflict(null); setEditing(null); void load(); }}>Use server version</button></div></Modal>}

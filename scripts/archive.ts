@@ -23,7 +23,7 @@ async function main() {
       },
       highlights: { none: { OR: [{ status: 'pinned' }, { status: 'accepted' }, { riskLevel: { in: ['high', 'critical'] } }] } },
     },
-    include: { entry: { select: { id: true, clinicId: true, patientId: true, type: true, currentVersion: true } } },
+    include: { entry: { select: { id: true, clinicId: true, patientId: true, type: true, currentVersion: true, updatedAt: true } } },
     orderBy: { createdAt: 'asc' },
   });
 
@@ -31,7 +31,7 @@ async function main() {
   for (const version of candidates) {
     console.log(`- ${version.entry.id} v${version.version} · ${version.entry.type} · ${version.createdAt.toISOString()}`);
     if (!apply) continue;
-    const relativePath = `data/archive/${version.id}.archive.json`;
+    const relativePath = `data/archive/${version.id}-${randomUUID()}.archive.json`;
     const verified = await writeArchiveFile(relativePath, {
       cipher: version.contentCipher,
       iv: version.contentIv,
@@ -41,7 +41,7 @@ async function main() {
     await db.$transaction(async (tx) => {
       await tx.archiveBlob.create({ data: { id: randomUUID(), entryVersionId: version.id, path: relativePath, sha256: verified.sha256 } });
       await tx.entryVersion.update({ where: { id: version.id }, data: { contentCipher: '__ARCHIVED__', contentIv: '', contentTag: '' } });
-      if (version.version === version.entry.currentVersion) await tx.entry.update({ where: { id: version.entry.id }, data: { storageTier: 'cold' } });
+      if (version.version === version.entry.currentVersion) await tx.entry.update({ where: { id: version.entry.id }, data: { storageTier: 'cold', updatedAt: version.entry.updatedAt } });
       await tx.auditEvent.create({
         data: {
           id: randomUUID(), clinicId: version.entry.clinicId, patientId: version.entry.patientId, action: 'entry_version.archived', entityType: 'entry_version', entityId: version.id,
