@@ -1,0 +1,16 @@
+services:
+  nightingale:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: file:../data/nightingale.db
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY}
+      DEMO_MODE: "true"
+      SESSION_COOKIE_SECURE: "false"
+      APP_ORIGIN: http://localhost:3000
+    volumes:
+      - nightingale-data:/app/data
+
+volumes:
+  nightingale-data:

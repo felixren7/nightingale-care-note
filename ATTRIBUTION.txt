@@ -1,0 +1,31 @@
+Nightingale Shared Care Note — third-party attribution
+
+No hosted or local language model is used. MockScribeProvider is deterministic project code.
+
+Runtime libraries
+- Next.js — MIT License — https://github.com/vercel/next.js
+- React / React DOM — MIT License — https://github.com/facebook/react
+- Prisma Client and Prisma CLI — Apache License 2.0 — https://github.com/prisma/prisma
+- @prisma/adapter-better-sqlite3 — Apache License 2.0 — https://github.com/prisma/prisma
+- better-sqlite3 — MIT License — https://github.com/WiseLibs/better-sqlite3
+- SQLite — Public Domain — https://www.sqlite.org/copyright.html
+- Tailwind CSS — MIT License — https://github.com/tailwindlabs/tailwindcss
+- Lucide React — ISC License — https://github.com/lucide-icons/lucide
+- jsdiff (`diff`) — BSD 3-Clause License — https://github.com/kpdecker/jsdiff
+- dotenv — BSD 2-Clause License — https://github.com/motdotla/dotenv
+- Zod — MIT License — https://github.com/colinhacks/zod
+- server-only — MIT License — https://www.npmjs.com/package/server-only
+- deepmerge-ts — MIT License — https://github.com/RebeccaStevens/deepmerge-ts (security override pinned to patched 8.0.0)
+
+Development and test tooling
+- TypeScript — Apache License 2.0 — https://github.com/microsoft/TypeScript
+- Vitest — MIT License — https://github.com/vitest-dev/vitest
+- ESLint — MIT License — https://github.com/eslint/eslint
+- eslint-config-next — MIT License — https://github.com/vercel/next.js
+- tsx — MIT License — https://github.com/privatenumber/tsx
+
+Generated visual
+- `public/og.png` was generated specifically for this project with OpenAI ImageGen from project-authored prompt text. It contains no patient data and no third-party brand assets.
+
+Fonts
+- The interface uses the operating system UI font stack; no web font is bundled or fetched.
