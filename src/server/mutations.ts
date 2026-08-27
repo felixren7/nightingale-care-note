@@ -46,7 +46,7 @@ export async function createEntry(
   assertCanViewPatient(user, patient);
   assertCanCreateEntry(user, input.type);
   const content = validateContent(input.content);
-  const visibility = input.type === 'patient_instruction' ? 'patient' : 'internal';
+  const visibility = ['patient_instruction', 'patient_insight'].includes(input.type) ? 'patient' : 'internal';
   if (input.visibility && input.visibility !== visibility) {
     throw new HttpError(400, 'VISIBILITY_FIXED_BY_TYPE', 'Visibility is fixed by entry type.');
   }
@@ -335,18 +335,30 @@ export async function patchComment(
 
 export async function applyHighlightFeedback(user: SessionUser, highlightId: string, action: string) {
   assertInternalCollaborator(user);
-  if (!['accept', 'reject', 'pin', 'resolve'].includes(action)) {
+  if (!['accept', 'reject', 'pin', 'resolve', 'undo_reject'].includes(action)) {
     throw new HttpError(400, 'INVALID_FEEDBACK_ACTION', 'Unknown highlight feedback action.');
   }
   const highlight = await db.highlight.findUnique({ where: { id: highlightId }, include: { patient: true } });
   if (!highlight) notFound();
   assertCanViewPatient(user, highlight.patient);
+  if (action === 'undo_reject' && highlight.status !== 'rejected') {
+    throw new HttpError(409, 'HIGHLIGHT_NOT_REJECTED', 'Only a rejected highlight can be restored.');
+  }
   const delta = feedbackDelta(action);
   const current = await db.featureWeight.findUnique({
     where: { clinicId_featureKey: { clinicId: highlight.patient.clinicId, featureKey: highlight.featureKey } },
   });
   const nextWeight = clamp((current?.weight ?? 0) + delta, -15, 15);
-  const status = action === 'reject' ? 'rejected' : action === 'pin' ? 'pinned' : action === 'resolve' ? 'resolved' : 'accepted';
+  const status =
+    action === 'reject'
+      ? 'rejected'
+      : action === 'undo_reject'
+        ? 'suggested'
+        : action === 'pin'
+          ? 'pinned'
+          : action === 'resolve'
+            ? 'resolved'
+            : 'accepted';
 
   await db.$transaction(async (tx) => {
     await tx.featureWeight.upsert({

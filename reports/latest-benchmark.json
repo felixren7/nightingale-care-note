@@ -1,5 +1,5 @@
 {
-  "measuredAt": "2026-08-26T04:57:54.028Z",
+  "measuredAt": "2026-08-27T10:52:41.558Z",
   "machine": "Darwin 25.2.0 · arm64 · Apple M4 · 16GB RAM",
   "runtime": "v24.14.0",
   "endpoint": "/api/patients/patient-maya/care-note",
@@ -7,9 +7,9 @@
   "warmupRequests": 50,
   "measuredRequests": 200,
   "concurrency": 10,
-  "p50Ms": 5.35,
-  "p95Ms": 9.55,
-  "maximumMs": 11.48,
+  "p50Ms": 6.53,
+  "p95Ms": 12.01,
+  "maximumMs": 14.75,
   "targetP95Ms": 300,
   "passed": true
 }

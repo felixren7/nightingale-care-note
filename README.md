@@ -22,8 +22,8 @@ Demo roles are selected from the server allowlist—not declared by the browser:
 |---|---|
 | Clinician · Dr Evan Lim | Glance, clinician-owned edits, history/diff/revert, comments, source verification, MockScribe |
 | Staff · Aisha Rahman | Staff-owned note creation, task status, comments; clinician note edit is denied |
-| Patient · Maya Tan | Only patient-facing instructions; no raw AI, comments, tasks, highlights, or audit fields |
-| Admin · Sara Chen | Clinic-scoped overview and `/api/audit?patientId=patient-maya` |
+| Patient · Maya Tan | Patient-facing instructions and authored updates; no raw AI, comments, tasks, highlights, or audit fields |
+| Admin · Sara Chen | Clinic-scoped audit panel; development-only synthetic reset |
 | North clinic staff | Maya returns 404, avoiding cross-clinic existence disclosure |
 
 ## What is implemented
@@ -34,9 +34,10 @@ Demo roles are selected from the server allowlist—not declared by the browser:
 - **Revision safety:** full immutable snapshots, word-level changes since the previous version, revert-by-append, and atomic `{baseVersion}` locking. The second same-version writer receives `409 VERSION_CONFLICT`; its draft is preserved for comparison.
 - **AI integration without a key:** three distinct scribe interaction types are supported through a deterministic `MockScribeProvider`. The demo never calls an LLM or sends data off-machine.
 - **Trust:** `entryId + versionId + startOffset + endOffset + sourceArtifactId?` resolves to the exact source text. Clinician corrections append a new Entry plus `supersedes` relation instead of mutating AI/patient history.
-- **Adaptive importance:** accept/pin adds `+2`, reject adds `-2`, clinic/feature weights are clamped to `[-15, 15]`, and matching highlights are re-scored with an auditable reason.
+- **Adaptive importance:** accept/pin adds `+2`, reject adds `-2`, and `undo_reject` restores the suggestion with the inverse `+2`; clinic/feature weights are clamped to `[-15, 15]`, and matching highlights are re-scored with an auditable reason.
 - **Cold archive:** only old, low-risk, resolved, unpinned versions are eligible. `archive:apply` writes gzip + AES-256-GCM blobs, verifies SHA-256, retains metadata/provenance, and supports transparent reads.
-- **Realtime:** patient-scoped SSE polls the outbox and refreshes another open browser after entries, comments, tasks, feedback, or scribe ingestion.
+- **Realtime:** patient-scoped SSE exposes connecting/live/reconnecting state and refreshes another open browser after entries, comments, tasks, feedback, or scribe ingestion.
+- **Operational demo controls:** Admin can inspect metadata-only audit events; development mode exposes an admin-only synthetic reset with confirmation.
 
 ## Security model
 
@@ -82,7 +83,7 @@ The required files are under `tests/brief/`:
 - `test_concurrent_edits.py`
 - `test_self_learning_importance.py`
 
-Each test talks to the real HTTP API. The harness reuses an existing local dev server when available or starts a loopback-only server on port 3100. On the recorded Apple M4 / 16 GB run, 50 warmups followed by 200 requests at concurrency 10 produced P50 **5.35 ms** and P95 **9.55 ms** (target: below 300 ms). The complete machine-readable result is in `reports/latest-benchmark.json`.
+Each test talks to the real HTTP API. The harness reuses an existing local dev server when available or starts a loopback-only server on port 3100. On the recorded Apple M4 / 16 GB run, 50 warmups followed by 200 requests at concurrency 10 produced P50 **6.53 ms** and P95 **12.01 ms** (target: below 300 ms). The complete machine-readable result is in `reports/latest-benchmark.json`.
 
 ## Docker
 
@@ -104,10 +105,11 @@ The container applies the checked migration and seeds only synthetic data. SQLit
 | PATCH | `/api/entries/:id` | Append version using `baseVersion` |
 | GET / POST | `/api/entries/:id/versions`, `/revert` | Full history/diff and append-only revert |
 | POST / PATCH | `/api/entries/:id/comments`, `/api/comments/:id` | Thread, assign, resolve/reopen |
-| POST | `/api/highlights/:id/feedback` | Accept, reject, pin, resolve and learn |
+| POST | `/api/highlights/:id/feedback` | Accept, reject, undo reject, pin, resolve and learn |
 | GET | `/api/provenance/:highlightId` | Resolve an exact authorized source span |
 | GET | `/api/events?patientId=&after=` | Scoped SSE outbox |
 | POST | `/api/dev/scribe-ingest` | DEMO_MODE-only deterministic scribe ingest |
+| POST | `/api/dev/reset` | Development-only, admin-only synthetic reset |
 
 ## Project map
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import {
   Activity,
   Bot,
@@ -68,6 +68,23 @@ type Provenance = {
     sourceArtifactId?: string;
   };
   source: { content: string; exactSpan: string; sessionRef?: string; interactionType?: string };
+};
+
+type TimelineView = 'care' | 'timeline' | 'tasks' | 'history' | 'comments';
+type ScribeInteraction = 'doctor_patient' | 'nurse_patient' | 'ai_patient';
+type ConnectionState = 'connecting' | 'live' | 'reconnecting';
+
+type AuditEvent = {
+  id: string;
+  patientId?: string;
+  actorId?: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  fromVersion?: number;
+  toVersion?: number;
+  metadata: Record<string, unknown>;
+  createdAt: string;
 };
 
 class ApiError extends Error {
@@ -141,9 +158,18 @@ export function CareNoteApp() {
   const [commentFor, setCommentFor] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [showScribe, setShowScribe] = useState(false);
+  const [scribeInteraction, setScribeInteraction] = useState<ScribeInteraction>('ai_patient');
   const [scribeText, setScribeText] = useState(
     'Maya Tan S1234567D called from +65 9123 4567 and reports worsening nightly cough.',
   );
+  const [activeView, setActiveView] = useState<TimelineView>('care');
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const [lastRejected, setLastRejected] = useState<{ id: string; summary: string } | null>(null);
+  const [showAudit, setShowAudit] = useState(false);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState('');
+  const [showReset, setShowReset] = useState(false);
   const [conflict, setConflict] = useState<{
     client: string;
     server: string;
@@ -206,12 +232,22 @@ export function CareNoteApp() {
       'task.updated',
       'scribe.ingested',
     ].forEach((name) => source.addEventListener(name, refresh));
-    return () => source.close();
+    source.onopen = () => setConnectionState('live');
+    source.onerror = () => setConnectionState('reconnecting');
+    return () => {
+      source.onopen = null;
+      source.onerror = null;
+      source.close();
+    };
   }, [patientId, load]);
 
   const switchRole = async (userId: string) => {
     setLoading(true);
     setMessage('');
+    setLastRejected(null);
+    setActiveView('care');
+    setConnectionState('connecting');
+    setShowAudit(false);
     setSelectedUserId(userId);
     await api('/api/session', { method: 'POST', body: JSON.stringify({ userId }) });
     await load();
@@ -221,6 +257,7 @@ export function CareNoteApp() {
     setBusy(label);
     setMessage('');
     setError('');
+    setLastRejected(null);
     try {
       await operation();
       setMessage(success);
@@ -255,6 +292,7 @@ export function CareNoteApp() {
           clientVersion: apiError.details?.clientVersion,
           serverVersion: apiError.details?.serverVersion,
         });
+        setEditing(null);
       } else {
         setError(apiError.message);
       }
@@ -308,22 +346,91 @@ export function CareNoteApp() {
   const age = note ? new Date().getFullYear() - note.patient.birthYear : 0;
   const selectedHighlight = note?.glance.find((item) => item.id === selectedHighlightId) ?? note?.glance[0];
 
-  const feedbackFor = (item: HighlightDTO, action: string) =>
-    mutate(
+  const feedbackFor = async (item: HighlightDTO, action: string) => {
+    const ok = await mutate(
       `highlight-${item.id}`,
       () =>
         api(`/api/highlights/${item.id}/feedback`, {
           method: 'POST',
           body: JSON.stringify({ action }),
         }),
-      `Feedback applied. Similar “${item.featureKey}” signals were re-scored.`,
+      action === 'reject'
+        ? `“${item.summary}” was rejected and removed from Glance.`
+        : `Feedback applied. Similar “${item.featureKey}” signals were re-scored.`,
     );
+    if (ok && action === 'reject') setLastRejected({ id: item.id, summary: item.summary });
+  };
+
+  const undoReject = async () => {
+    if (!lastRejected) return;
+    const rejected = lastRejected;
+    const ok = await mutate(
+      `highlight-${rejected.id}`,
+      () => api(`/api/highlights/${rejected.id}/feedback`, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'undo_reject' }),
+      }),
+      `“${rejected.summary}” was restored to Glance and its score was reversed.`,
+    );
+    if (ok) setLastRejected(null);
+  };
+
+  const navigateTo = (view: TimelineView, href: string) => {
+    setActiveView(view);
+    requestAnimationFrame(() => document.querySelector(href)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  const openAuditTrail = async () => {
+    if (!note) return;
+    setShowAudit(true);
+    setAuditLoading(true);
+    setAuditError('');
+    try {
+      const result = await api<{ events: AuditEvent[] }>(`/api/audit?patientId=${note.patient.id}`);
+      setAuditEvents(result.events);
+    } catch (requestError) {
+      setAuditError((requestError as ApiError).message);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const resetDemo = async () => {
+    setBusy('reset-demo');
+    setError('');
+    setMessage('');
+    try {
+      await api('/api/dev/reset', { method: 'POST' });
+      setShowReset(false);
+      await load();
+      setMessage('Synthetic demo data reset to the clean seed. You are back in the clinician role.');
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const timelineEntries = note?.timeline.filter((entry) =>
+    activeView === 'history'
+      ? entry.version > 1
+      : activeView === 'comments'
+        ? Boolean(entry.comments?.length)
+        : true,
+  ) ?? [];
+  const timelineTitle = activeView === 'history' ? 'Entry history' : activeView === 'comments' ? 'Comment threads' : 'Patient story';
 
   return (
     <main className="clinical-app">
       <a className="skip-link" href="#patient-workspace">Skip to patient workspace</a>
       <div className="clinical-shell">
-        <ClinicalSidebar viewer={note?.viewer} topCount={topCount} openTasks={openTasks} />
+        <ClinicalSidebar
+          viewer={note?.viewer}
+          topCount={topCount}
+          openTasks={openTasks}
+          activeView={activeView}
+          onNavigate={navigateTo}
+        />
         <div className="clinical-workspace">
           <header className="app-bar">
             <div className="app-bar-title">
@@ -331,9 +438,15 @@ export function CareNoteApp() {
               <div><strong>Nightingale</strong><span>Shared Care Note</span></div>
             </div>
             <div className="app-bar-controls">
-              <span className="sync-status">
-                <RefreshCw className={loading ? 'is-spinning' : ''} aria-hidden="true" />
-                {loading ? 'Opening encrypted record' : 'Live clinical workspace'}
+              <span className="sync-status" aria-live="polite">
+                <RefreshCw className={loading || connectionState !== 'live' ? 'is-spinning' : ''} aria-hidden="true" />
+                {loading
+                  ? 'Opening encrypted record'
+                  : connectionState === 'live'
+                    ? 'Live clinical workspace'
+                    : connectionState === 'reconnecting'
+                      ? 'Reconnecting live updates…'
+                      : 'Connecting live updates…'}
               </span>
               <span className="synthetic-badge">Synthetic data</span>
               <label className="role-selector">
@@ -352,7 +465,10 @@ export function CareNoteApp() {
               {(message || error) && (
                 <div className={`notice ${error ? 'notice-error' : 'notice-success'}`} role="status" aria-live="polite">
                   <span>{error || message}</span>
-                  <button aria-label="Dismiss notification" onClick={() => { setError(''); setMessage(''); }}><X aria-hidden="true" /></button>
+                  <div className="notice-actions">
+                    {lastRejected && !error && <button className="notice-undo" disabled={busy === `highlight-${lastRejected.id}`} onClick={() => void undoReject()}>Undo reject</button>}
+                    <button aria-label="Dismiss notification" onClick={() => { setError(''); setMessage(''); setLastRejected(null); }}><X aria-hidden="true" /></button>
+                  </div>
                 </div>
               )}
 
@@ -371,7 +487,9 @@ export function CareNoteApp() {
                 </div>
                 <div className="patient-actions">
                   {canCollaborate && <button className="secondary-button" onClick={() => setShowScribe(true)}><Bot aria-hidden="true" />Mock scribe</button>}
-                  {canAdd && <button className="primary-button" onClick={() => setShowAdd(true)}><Plus aria-hidden="true" />Add care note</button>}
+                  {note.viewer.role === 'admin' && <button className="secondary-button" onClick={() => void openAuditTrail()}><FileClock aria-hidden="true" />Audit trail</button>}
+                  {note.viewer.role === 'admin' && process.env.NODE_ENV !== 'production' && <button className="secondary-button" onClick={() => setShowReset(true)}><RefreshCw aria-hidden="true" />Reset demo</button>}
+                  {canAdd && <button className="primary-button" onClick={() => setShowAdd(true)}><Plus aria-hidden="true" />{note.viewer.role === 'patient' ? 'Share an update' : 'Add care note'}</button>}
                 </div>
               </section>
 
@@ -392,11 +510,11 @@ export function CareNoteApp() {
 
                     <section className="timeline-panel" id="timeline" aria-labelledby="timeline-title">
                       <div className="panel-heading timeline-heading">
-                        <div><p className="section-kicker">Longitudinal timeline</p><h2 id="timeline-title">Patient story</h2></div>
-                        <span className="entry-count">{note.timeline.length} traceable entries</span>
+                        <div><p className="section-kicker">Longitudinal timeline</p><h2 id="timeline-title">{timelineTitle}</h2></div>
+                        <span className="entry-count">{timelineEntries.length}{timelineEntries.length !== note.timeline.length ? ` of ${note.timeline.length}` : ''} traceable entries</span>
                       </div>
                       <div className="timeline-list">
-                        {note.timeline.map((entry) => (
+                        {timelineEntries.map((entry) => (
                           <TimelineEntry
                             key={entry.id}
                             entry={entry}
@@ -408,6 +526,7 @@ export function CareNoteApp() {
                             onResolveComment={(id, status) => void mutate(`comment-${id}`, () => api(`/api/comments/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }), `Comment marked ${status}.`)}
                           />
                         ))}
+                        {!timelineEntries.length && <div className="timeline-empty"><MessageSquare aria-hidden="true" /><strong>No matching entries</strong><span>{activeView === 'comments' ? 'No comment threads are visible for this record.' : 'No entries have more than one immutable version yet.'}</span></div>}
                       </div>
                     </section>
                   </div>
@@ -430,8 +549,8 @@ export function CareNoteApp() {
       </div>
 
       {showAdd && note && (
-        <Modal title="Add role-owned care note" onClose={() => setShowAdd(false)}>
-          <p className="modal-help">This creates a new {note.viewer.role} section. It cannot overwrite another role’s note.</p>
+        <Modal title={note.viewer.role === 'patient' ? 'Share a patient update' : 'Add role-owned care note'} onClose={() => setShowAdd(false)}>
+          <p className="modal-help">{note.viewer.role === 'patient' ? 'Your update is added to your care summary and shared with your care team.' : `This creates a new ${note.viewer.role} section. It cannot overwrite another role’s note.`}</p>
           <textarea autoFocus value={newContent} onChange={(event) => setNewContent(event.target.value)} placeholder="Add a concise, clinically useful update…" />
           <div className="modal-actions"><button className="secondary-button" onClick={() => setShowAdd(false)}>Cancel</button><button className="primary-button" disabled={!newContent.trim() || busy === 'create-note'} onClick={() => void createNote()}>{busy === 'create-note' ? 'Saving…' : 'Create version 1'}</button></div>
         </Modal>
@@ -447,11 +566,12 @@ export function CareNoteApp() {
 
       {history && note && (
         <Modal title={`Immutable history · ${prettyType(history.entry.section)}`} onClose={() => setHistory(null)}>
+          <div className="version-legend" aria-label="Change legend"><span className="added">Added text</span><span className="removed">Removed text</span></div>
           <div className="version-list">
             {history.versions.map((version) => (
               <article key={version.id}>
                 <div><strong>Version {version.version}</strong><span>{formatDate(version.createdAt)}{version.revertedFromVersion ? ` · reverted from v${version.revertedFromVersion}` : ''}</span></div>
-                {version.changes?.length ? <p className="version-diff" aria-label={`Changes in version ${version.version}`}>{version.changes.map((change, index) => <span className={change.added ? 'added' : change.removed ? 'removed' : ''} key={`${index}-${change.value}`}>{change.value}</span>)}</p> : <p>{version.content}</p>}
+                {version.changes?.length ? <p className="version-diff" aria-label={`Changes in version ${version.version}`}>{version.changes.map((change, index) => <span className={change.added ? 'added' : change.removed ? 'removed' : ''} aria-label={change.added ? `Added: ${change.value}` : change.removed ? `Removed: ${change.value}` : undefined} key={`${index}-${change.value}`}>{change.value}</span>)}</p> : <p>{version.content}</p>}
                 {canEdit(note.viewer, history.entry) && version.version !== history.entry.version && <button onClick={() => void mutate(`revert-${version.version}`, () => api(`/api/entries/${history.entry.id}/revert`, { method: 'POST', body: JSON.stringify({ version: version.version, baseVersion: history.entry.version }) }), `Version ${version.version} restored as a new version.`).then((ok) => { if (ok) setHistory(null); })}>Revert by creating a new version</button>}
               </article>
             ))}
@@ -461,7 +581,7 @@ export function CareNoteApp() {
 
       {provenance && (
         <Modal title="Verified provenance pointer" onClose={() => setProvenance(null)}>
-          <div className="provenance-meta"><span>Entry {provenance.pointer.entryId}</span><span>Version {provenance.pointer.version}</span><span>Span {provenance.pointer.startOffset}–{provenance.pointer.endOffset}</span>{provenance.source.sessionRef && <span>Session {provenance.source.sessionRef}</span>}</div>
+          <div className="provenance-meta"><span>Entry {provenance.pointer.entryId}</span><span>Version {provenance.pointer.version}</span><span>Version ID {provenance.pointer.versionId}</span><span>Span {provenance.pointer.startOffset}–{provenance.pointer.endOffset}</span>{provenance.pointer.sourceArtifactId && <span>Artifact {provenance.pointer.sourceArtifactId}</span>}{provenance.source.sessionRef && <span>Session {provenance.source.sessionRef}</span>}</div>
           <p className="source-copy">{provenance.source.content}</p>
           <div className="exact-span"><strong>Exact referenced span</strong><p>{provenance.source.exactSpan || 'The stored offsets resolve to an empty span.'}</p></div>
           <div className="modal-actions"><button className="primary-button" onClick={() => { const entryId = provenance.pointer.entryId; setProvenance(null); requestAnimationFrame(() => document.getElementById(`entry-${entryId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })); }}><Link2 aria-hidden="true" />Jump to timeline entry</button></div>
@@ -480,8 +600,24 @@ export function CareNoteApp() {
         <Modal title="Mock scribe · local provider" onClose={() => setShowScribe(false)}>
           <div className="provider-banner"><span><Bot aria-hidden="true" />Provider: deterministic local mock</span><strong>No external transmission</strong></div>
           <p className="modal-help">Names, Singapore IDs and phone numbers are redacted before the provider boundary. No network or LLM key is used.</p>
+          <label className="modal-field"><span>Interaction type</span><select value={scribeInteraction} onChange={(event) => setScribeInteraction(event.target.value as ScribeInteraction)}><option value="ai_patient">Patient self-report</option><option value="doctor_patient">Clinician–patient consult</option><option value="nurse_patient">Nurse–patient consult</option></select></label>
           <textarea value={scribeText} onChange={(event) => setScribeText(event.target.value)} />
-          <div className="modal-actions"><button className="secondary-button" onClick={() => setShowScribe(false)}>Cancel</button><button className="primary-button" disabled={!scribeText.trim() || Boolean(busy)} onClick={() => void mutate('scribe', () => api('/api/dev/scribe-ingest', { method: 'POST', body: JSON.stringify({ patientId: note.patient.id, sessionRef: `demo-${Date.now()}`, interactionType: 'ai_patient', transcript: scribeText }) }), 'Mock scribe entry created. PHI was redacted before provider processing.').then((ok) => { if (ok) setShowScribe(false); })}><Sparkles aria-hidden="true" />Redact & ingest</button></div>
+          <div className="modal-actions"><button className="secondary-button" onClick={() => setShowScribe(false)}>Cancel</button><button className="primary-button" disabled={!scribeText.trim() || Boolean(busy)} onClick={() => void mutate('scribe', () => api('/api/dev/scribe-ingest', { method: 'POST', body: JSON.stringify({ patientId: note.patient.id, sessionRef: `demo-${Date.now()}`, interactionType: scribeInteraction, transcript: scribeText }) }), 'Mock scribe entry created. PHI was redacted before provider processing.').then((ok) => { if (ok) setShowScribe(false); })}><Sparkles aria-hidden="true" />Redact & ingest</button></div>
+        </Modal>
+      )}
+
+      {showAudit && note && (
+        <Modal title="Clinic audit trail · Maya Tan" onClose={() => setShowAudit(false)}>
+          <div className="audit-toolbar"><p className="modal-help">Admin-only metadata for this patient, newest first. Clinical free text is never included.</p><button className="secondary-button" disabled={auditLoading} onClick={() => void openAuditTrail()}><RefreshCw className={auditLoading ? 'is-spinning' : ''} aria-hidden="true" />Refresh</button></div>
+          {auditError ? <p className="audit-error" role="alert">{auditError}</p> : auditLoading && !auditEvents.length ? <p className="audit-loading">Loading audit events…</p> : !auditEvents.length ? <p className="audit-loading">No audit events yet. Actions taken during the demo will appear here.</p> : <div className="audit-list">{auditEvents.map((event) => <article key={event.id}><div><strong>{prettyType(event.action.replace('.', '_'))}</strong><time>{formatDate(event.createdAt)}</time></div><p>{prettyType(event.entityType)} · <code>{event.entityId}</code></p><dl><div><dt>Actor</dt><dd>{event.actorId ?? 'System'}</dd></div>{(event.fromVersion || event.toVersion) && <div><dt>Version</dt><dd>{event.fromVersion ? `v${event.fromVersion} → ` : ''}{event.toVersion ? `v${event.toVersion}` : '—'}</dd></div>}<div><dt>Metadata</dt><dd>{Object.keys(event.metadata).length ? JSON.stringify(event.metadata) : 'None'}</dd></div></dl></article>)}</div>}
+        </Modal>
+      )}
+
+      {showReset && (
+        <Modal title="Reset synthetic demo data?" onClose={() => setShowReset(false)}>
+          <p className="modal-help">This development-only action deletes current synthetic changes and restores the clean seed. It never targets a production database.</p>
+          <div className="reset-warning"><ShieldAlert aria-hidden="true" /><div><strong>All demo edits, comments, feedback and sessions will be replaced.</strong><span>The page will reopen in the clinician role after the reset.</span></div></div>
+          <div className="modal-actions"><button className="secondary-button" disabled={busy === 'reset-demo'} onClick={() => setShowReset(false)}>Cancel</button><button className="danger-button" disabled={busy === 'reset-demo'} onClick={() => void resetDemo()}>{busy === 'reset-demo' ? 'Resetting…' : 'Reset synthetic data'}</button></div>
         </Modal>
       )}
 
@@ -496,21 +632,21 @@ export function CareNoteApp() {
   );
 }
 
-function ClinicalSidebar({ viewer, topCount, openTasks }: { viewer?: SessionUser; topCount: number; openTasks: number }) {
+function ClinicalSidebar({ viewer, topCount, openTasks, activeView, onNavigate }: { viewer?: SessionUser; topCount: number; openTasks: number; activeView: TimelineView; onNavigate: (view: TimelineView, href: string) => void }) {
   const staffNavItems = [
-    { href: '#glance', label: 'Care note', icon: FileText, count: topCount },
-    { href: '#timeline', label: 'Timeline', icon: Activity },
-    { href: '#tasks', label: 'Tasks', icon: ClipboardList, count: openTasks },
-    { href: '#timeline', label: 'History', icon: FileClock },
-    { href: '#timeline', label: 'Comments', icon: MessageSquare },
+    { href: '#glance', view: 'care' as const, label: 'Care note', icon: FileText, count: topCount },
+    { href: '#timeline', view: 'timeline' as const, label: 'Timeline', icon: Activity },
+    { href: '#tasks', view: 'tasks' as const, label: 'Tasks', icon: ClipboardList, count: openTasks },
+    { href: '#timeline', view: 'history' as const, label: 'History', icon: FileClock },
+    { href: '#timeline', view: 'comments' as const, label: 'Comments', icon: MessageSquare },
   ];
   const navItems = viewer?.role === 'patient'
-    ? [{ href: '#patient-workspace', label: 'Care summary', icon: HeartPulse }]
+    ? [{ href: '#patient-workspace', view: 'care' as const, label: 'Care summary', icon: HeartPulse }]
     : staffNavItems;
   return (
     <aside className="clinical-sidebar" aria-label="Clinical workspace navigation">
       <div className="brand-lockup"><div className="brand-mark" aria-hidden="true">N</div><div><strong>Nightingale</strong><span>Clinical workspace</span></div></div>
-      <nav>{navItems.map((item, index) => { const Icon = item.icon; return <a className={index === 0 ? 'active' : ''} href={item.href} key={`${item.label}-${index}`}><Icon aria-hidden="true" /><span>{item.label}</span>{typeof item.count === 'number' && item.count > 0 && <small>{item.count}</small>}</a>; })}</nav>
+      <nav>{navItems.map((item) => { const Icon = item.icon; const active = item.view === activeView; return <a className={active ? 'active' : ''} href={item.href} aria-current={active ? 'page' : undefined} title={item.label} onClick={(event) => { event.preventDefault(); onNavigate(item.view, item.href); }} key={item.label}><Icon aria-hidden="true" /><span>{item.label}</span>{'count' in item && typeof item.count === 'number' && item.count > 0 && <small>{item.count}</small>}</a>; })}</nav>
       <div className="sidebar-trust"><ShieldCheck aria-hidden="true" /><div><strong>Central Clinic</strong><span>Encrypted · scoped access</span></div></div>
       {viewer && <div className="sidebar-user"><div className="user-initials" aria-hidden="true">{viewer.displayName.split(' ').map((part) => part[0]).join('').slice(0, 2)}</div><div><strong>{viewer.displayName}</strong><span>{prettyType(viewer.role)}</span></div></div>}
     </aside>
@@ -558,7 +694,7 @@ function PatientSummary({ note }: { note: CareNote }) {
   return (
     <div className="patient-summary-layout">
       <section className="patient-summary-card"><div className="panel-heading"><div><p className="section-kicker">Your care summary</p><h2>What your care team shared</h2></div><HeartPulse aria-hidden="true" /></div><div className="patient-entry-list">{note.timeline.map((entry) => <article key={entry.id}><p>{prettyType(entry.type)}</p><strong>{prettyType(entry.section)}</strong><span>{entry.content}</span></article>)}</div></section>
-      <section className="patient-privacy-card"><ShieldCheck aria-hidden="true" /><h2>Private by construction</h2><p>This API response contains only patient-facing instructions. Internal notes, raw AI summaries, comments, tasks and audit data are excluded on the server.</p></section>
+      <section className="patient-privacy-card"><ShieldCheck aria-hidden="true" /><h2>Private by construction</h2><p>This API response contains only patient-facing instructions and patient-submitted updates. Internal notes, raw AI summaries, comments, tasks and audit data are excluded on the server.</p></section>
     </div>
   );
 }
@@ -575,10 +711,56 @@ function TimelineEntry({ entry, viewer, busy, onEdit, onHistory, onComment, onRe
 }
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const cardRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+  const titleId = useId();
+
   useEffect(() => {
-    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
+    onCloseRef.current = onClose;
   }, [onClose]);
-  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="modal-card"><div className="modal-header"><h2>{title}</h2><button aria-label="Close" onClick={onClose}><X aria-hidden="true" /></button></div><div className="modal-body">{children}</div></section></div>;
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const shell = document.querySelector<HTMLElement>('.clinical-shell');
+    shell?.setAttribute('inert', '');
+    const focusableSelector = 'button:not([disabled]), textarea:not([disabled]), select:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+    const focusFrame = requestAnimationFrame(() => {
+      const card = cardRef.current;
+      if (!card || card.contains(document.activeElement)) return;
+      const firstFocusable = card.querySelector<HTMLElement>(focusableSelector);
+      if (firstFocusable) firstFocusable.focus();
+      else card.focus();
+    });
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !cardRef.current) return;
+      const focusable = [...cardRef.current.querySelectorAll<HTMLElement>(focusableSelector)];
+      if (!focusable.length) {
+        event.preventDefault();
+        cardRef.current.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', handleKeyDown);
+      shell?.removeAttribute('inert');
+      if (previousFocus?.isConnected) requestAnimationFrame(() => previousFocus.focus());
+    };
+  }, []);
+  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby={titleId} onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="modal-card" ref={cardRef} tabIndex={-1}><div className="modal-header"><h2 id={titleId}>{title}</h2><button aria-label="Close" onClick={onClose}><X aria-hidden="true" /></button></div><div className="modal-body">{children}</div></section></div>;
 }

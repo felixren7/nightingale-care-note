@@ -42,6 +42,7 @@ describe('importance learning', () => {
     expect(score.finalScore).toBe(100);
     expect(feedbackDelta('pin')).toBe(2);
     expect(feedbackDelta('reject')).toBe(-2);
+    expect(feedbackDelta('undo_reject')).toBe(2);
   });
 });
 

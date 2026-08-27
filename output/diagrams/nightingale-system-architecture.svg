@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1960" height="1120" viewBox="0 0 1960 1120">
+<defs>
+<marker id="arrow-teal" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#0F7C79"/></marker>
+<marker id="arrow-navy" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#123149"/></marker>
+<marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#7259B6"/></marker>
+<marker id="arrow-amber" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#C77A12"/></marker>
+</defs>
+<rect width="1960" height="1120" fill="#F7FAFA"/>
+<text x="72" y="88" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="700" fill="#102A3A">System architecture and trust boundaries</text>
+<text x="74" y="126" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="400" fill="#5B6B75">Every path is explicit: who may read, what may change, and how evidence returns to the UI.</text>
+<rect x="45" y="170" width="1880" height="195" rx="24" fill="#FFFFFF" stroke="#C9D5D2" stroke-width="2"/>
+<text x="63" y="201" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" fill="#5B6B75">AUTHORIZED READ PATH</text>
+<rect x="45" y="485" width="1880" height="205" rx="24" fill="#FFFFFF" stroke="#C9D5D2" stroke-width="2"/>
+<text x="63" y="516" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" fill="#5B6B75">SCRIBE + WRITE PATH</text>
+<rect x="45" y="785" width="1880" height="200" rx="24" fill="#FFFFFF" stroke="#C9D5D2" stroke-width="2"/>
+<text x="63" y="816" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" fill="#5B6B75">COLD STORAGE</text>
+<path d="M 370 246 L 430 246" fill="none" stroke="#0F7C79" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<path d="M 430 288 L 370 288" fill="none" stroke="#0F7C79" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<path d="M 730 267 L 790 267" fill="none" stroke="#123149" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-navy)"/>
+<path d="M 1090 267 L 1150 267" fill="none" stroke="#0F7C79" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<path d="M 1450 246 L 1530 246" fill="none" stroke="#0F7C79" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<path d="M 1530 288 L 1450 288" fill="none" stroke="#0F7C79" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<path d="M 940 329 L 940 455 L 1300 455 L 1300 525" fill="none" stroke="#123149" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-navy)"/>
+<path d="M 370 587 L 430 587" fill="none" stroke="#7259B6" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+<path d="M 730 587 L 790 587" fill="none" stroke="#7259B6" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+<path d="M 1090 587 L 1150 587" fill="none" stroke="#7259B6" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+<path d="M 1450 587 L 1530 587" fill="none" stroke="#0F7C79" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<path d="M 1450 566 L 1490 566 L 1490 267 L 1530 267" fill="none" stroke="#C77A12" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-amber)"/>
+<path d="M 1700 649 L 1700 720 L 30 720 L 30 267 L 70 267" fill="none" stroke="#0F7C79" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<path d="M 1700 329 L 1900 329 L 1900 887 L 1870 887" fill="none" stroke="#C77A12" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-amber)"/>
+<path d="M 1870 921 L 1880 921 L 1880 350 L 1745 350 L 1745 329" fill="none" stroke="#C77A12" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow-amber)" stroke-dasharray="12 10"/>
+<rect x="70" y="205" width="300" height="124" rx="20" fill="#E9F7F3" stroke="#7AD9C2" stroke-width="3"/>
+<text x="94" y="248" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Care Note UI</text>
+<text x="94" y="287" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">Glance &lt;= 5 items</text>
+<text x="94" y="312" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">role-aware response</text>
+<rect x="430" y="205" width="300" height="124" rx="20" fill="#FFFFFF" stroke="#C9D5D2" stroke-width="3"/>
+<text x="454" y="248" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Route Handlers</text>
+<text x="454" y="287" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">session + validation</text>
+<text x="454" y="312" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">thin HTTP boundary</text>
+<rect x="790" y="205" width="300" height="124" rx="20" fill="#FFFFFF" stroke="#123149" stroke-width="3"/>
+<text x="814" y="248" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Authorization DAL</text>
+<text x="814" y="287" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">clinic / patient scope</text>
+<text x="814" y="312" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">object re-check</text>
+<rect x="1150" y="205" width="300" height="124" rx="20" fill="#E9F7F3" stroke="#7AD9C2" stroke-width="3"/>
+<text x="1174" y="248" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Read + provenance</text>
+<text x="1174" y="287" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">timeline / tasks / Glance</text>
+<text x="1174" y="312" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">exact version + span</text>
+<rect x="1530" y="205" width="340" height="124" rx="20" fill="#FFF7E8" stroke="#E7B85D" stroke-width="3"/>
+<text x="1554" y="248" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Encrypted SQLite WAL</text>
+<text x="1554" y="287" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">ciphertext + content hashes</text>
+<text x="1554" y="312" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">typed relational state</text>
+<rect x="70" y="525" width="300" height="124" rx="20" fill="#F3EFFB" stroke="#B9A8E6" stroke-width="3"/>
+<text x="94" y="568" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Synthetic transcript</text>
+<text x="94" y="607" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">doctor / nurse / AI-patient</text>
+<text x="94" y="632" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">demo input only</text>
+<rect x="430" y="525" width="300" height="124" rx="20" fill="#F3EFFB" stroke="#B9A8E6" stroke-width="3"/>
+<text x="454" y="568" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">PHI redaction</text>
+<text x="454" y="607" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">known names + SG IDs</text>
+<text x="454" y="632" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">telephone patterns</text>
+<rect x="790" y="525" width="300" height="124" rx="20" fill="#F3EFFB" stroke="#7259B6" stroke-width="3"/>
+<text x="814" y="568" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Deterministic MockScribe</text>
+<text x="814" y="607" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">redacted text only</text>
+<text x="814" y="632" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">typed summary + feature</text>
+<rect x="1150" y="525" width="300" height="124" rx="20" fill="#FFFFFF" stroke="#123149" stroke-width="3"/>
+<text x="1174" y="568" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Atomic mutations</text>
+<text x="1174" y="607" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">append EntryVersion</text>
+<text x="1174" y="632" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">baseVersion conflict gate</text>
+<rect x="1530" y="525" width="340" height="124" rx="20" fill="#E9F7F3" stroke="#7AD9C2" stroke-width="3"/>
+<text x="1554" y="568" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Audit + outbox</text>
+<text x="1554" y="607" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">metadata-only audit</text>
+<text x="1554" y="632" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">patient-scoped SSE</text>
+<rect x="1530" y="825" width="340" height="124" rx="20" fill="#FFF7E8" stroke="#E7B85D" stroke-width="3"/>
+<text x="1554" y="868" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="700" fill="#102A3A">Cold archive blob</text>
+<text x="1554" y="907" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">gzip + AES-256-GCM</text>
+<text x="1554" y="932" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">SHA-256 verified restore</text>
+<rect x="366" y="218" width="82" height="28" rx="9" fill="#F7FAFA"/>
+<text x="375" y="238" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#5B6B75">request</text>
+<rect x="350" y="292" width="82" height="28" rx="9" fill="#F7FAFA"/>
+<text x="359" y="312" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#5B6B75">DTO</text>
+<rect x="1445" y="218" width="82" height="28" rx="9" fill="#F7FAFA"/>
+<text x="1454" y="238" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#5B6B75">query</text>
+<rect x="1430" y="292" width="82" height="28" rx="9" fill="#F7FAFA"/>
+<text x="1439" y="312" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#5B6B75">rows</text>
+<rect x="1085" y="493" width="135" height="28" rx="9" fill="#F7FAFA"/>
+<text x="1094" y="513" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#5B6B75">redacted only</text>
+<rect x="1450" y="542" width="82" height="28" rx="9" fill="#F7FAFA"/>
+<text x="1459" y="562" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#5B6B75">same tx</text>
+<rect x="1468" y="378" width="108" height="28" rx="9" fill="#F7FAFA"/>
+<text x="1477" y="398" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#5B6B75">ciphertext</text>
+<rect x="72" y="690" width="180" height="28" rx="9" fill="#F7FAFA"/>
+<text x="81" y="710" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#5B6B75">scoped SSE refresh</text>
+<rect x="1765" y="770" width="171" height="28" rx="9" fill="#F7FAFA"/>
+<text x="1774" y="790" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" fill="#5B6B75">archive / restore</text>
+<text x="76" y="1035" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="400" fill="#5B6B75">Teal = authorized read / refresh   |   Purple = scribe boundary   |   Amber = encrypted persistence</text>
+</svg>

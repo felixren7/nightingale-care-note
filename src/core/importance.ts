@@ -38,7 +38,7 @@ export function calculateImportance(input: ImportanceInput) {
 }
 
 export function feedbackDelta(action: string) {
-  if (action === 'accept' || action === 'pin') return 2;
+  if (action === 'accept' || action === 'pin' || action === 'undo_reject') return 2;
   if (action === 'reject') return -2;
   return 0;
 }
